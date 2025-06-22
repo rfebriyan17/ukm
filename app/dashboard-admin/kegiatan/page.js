@@ -56,111 +56,115 @@ export default function ManageKegiatan() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 md:ml-64 text-gray-800">
-      <h1 className="text-2xl font-semibold text-indigo-900 mb-6">Kelola Kegiatan</h1>
+    <div className="min-h-screen bg-gray-100 py-10 px-4 text-gray-800">
+      <div className="max-w-screen-xl mx-auto">
+        <h1 className="text-3xl font-bold text-indigo-900 mb-6">Kelola Kegiatan</h1>
 
-      <button
-        onClick={() => router.push('/dashboard-admin')}
-        className="mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
-      >
-        &larr; Kembali ke Dashboard
-      </button>
+        <button
+          onClick={() => router.push('/dashboard-admin')}
+          className="mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+        >
+          &larr; Kembali ke Dashboard
+        </button>
 
-      <div className="bg-white p-6 rounded shadow mb-8">
-        <h2 className="text-xl font-semibold mb-4">
-          {editingId ? 'Edit Kegiatan' : 'Tambah Kegiatan'}
-        </h2>
-        <div className="flex flex-wrap gap-4">
-          <input
-            type="text"
-            name="nama"
-            placeholder="Nama Kegiatan"
-            value={form.nama}
-            onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 flex-grow min-w-[200px] text-gray-800 placeholder:text-gray-400"
-          />
-          <input
-            type="date"
-            name="tanggal"
-            value={form.tanggal}
-            onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 text-gray-800"
-          />
-          {editingId ? (
-            <>
+        {/* Form Tambah/Edit */}
+        <div className="bg-white p-6 rounded shadow mb-8">
+          <h2 className="text-xl font-semibold text-indigo-900 mb-4">
+            {editingId ? 'Edit Kegiatan' : 'Tambah Kegiatan'}
+          </h2>
+          <div className="flex flex-wrap gap-4">
+            <input
+              type="text"
+              name="nama"
+              placeholder="Nama Kegiatan"
+              value={form.nama}
+              onChange={handleChange}
+              className="border border-gray-300 rounded px-3 py-2 flex-grow min-w-[200px] text-gray-800 placeholder:text-gray-500"
+            />
+            <input
+              type="date"
+              name="tanggal"
+              value={form.tanggal}
+              onChange={handleChange}
+              className="border border-gray-300 rounded px-3 py-2 text-gray-800"
+            />
+            {editingId ? (
+              <>
+                <button
+                  onClick={handleUpdate}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Update
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({ nama: '', tanggal: '' });
+                  }}
+                  className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+                >
+                  Batal
+                </button>
+              </>
+            ) : (
               <button
-                onClick={handleUpdate}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                onClick={handleAdd}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
               >
-                Update
+                Tambah
               </button>
-              <button
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ nama: '', tanggal: '' });
-                }}
-                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
-              >
-                Batal
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleAdd}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
-            >
-              Tambah
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded shadow">
-        <h2 className="text-xl font-semibold mb-4">Daftar Kegiatan</h2>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-indigo-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">
-                Nama Kegiatan
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">
-                Tanggal
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">
-                Aksi
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {kegiatan.map(({ _id, nama, tanggal }) => (
-              <tr key={_id} className="hover:bg-indigo-50">
-                <td className="px-6 py-4">{nama}</td>
-                <td className="px-6 py-4">{tanggal}</td>
-                <td className="px-6 py-4 space-x-2">
-                  <button
-                    onClick={() => handleEdit({ _id, nama, tanggal })}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(_id)}
-                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Hapus
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {kegiatan.length === 0 && (
-              <tr>
-                <td colSpan={3} className="text-center py-4 text-gray-500">
-                  Tidak ada data kegiatan.
-                </td>
-              </tr>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        {/* Tabel Daftar Kegiatan */}
+        <div className="bg-white p-6 rounded shadow overflow-x-auto">
+          <h2 className="text-xl font-semibold text-indigo-900 mb-4">Daftar Kegiatan</h2>
+          <table className="min-w-full divide-y divide-gray-200 text-gray-800">
+            <thead className="bg-indigo-100">
+              <tr>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-indigo-900">
+                  Nama Kegiatan
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-indigo-900">
+                  Tanggal
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-indigo-900">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {kegiatan.map(({ _id, nama, tanggal }) => (
+                <tr key={_id} className="hover:bg-indigo-50">
+                  <td className="px-6 py-4">{nama}</td>
+                  <td className="px-6 py-4">{tanggal}</td>
+                  <td className="px-6 py-4 space-x-2">
+                    <button
+                      onClick={() => handleEdit({ _id, nama, tanggal })}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(_id)}
+                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {kegiatan.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="text-center py-4 text-gray-500">
+                    Tidak ada data kegiatan.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

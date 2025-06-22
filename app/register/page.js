@@ -105,16 +105,15 @@ export default function RegisterPage() {
           <div>
             <label htmlFor="role" className="block mb-2 text-gray-700 font-medium">Daftar sebagai</label>
             <select
-              name="role"
-              id="role"
-              value={formData.role}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-            >
-              <option value="mhs">Mahasiswa</option>
-              <option value="pengurus">Pengurus UKM</option>
-            </select>
+  name="role"
+  id="role"
+  value={formData.role}
+  onChange={handleChange}
+  disabled={isSubmitting}
+  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+>
+  <option value="mhs">Mahasiswa</option>
+</select>
           </div>
 
           <button

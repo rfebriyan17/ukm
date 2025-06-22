@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -15,56 +16,52 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setMessage('');
 
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+    const res = await signIn('credentials', {
+      redirect: false,
+      username,
+      password,
+    });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // Simpan status login sementara
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('role', data.role);
-        localStorage.setItem('nama', data.nama);
-        localStorage.setItem('userId', data.id);
+    if (res.ok) {
+      try {
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        const role = session?.user?.role?.toLowerCase();
 
         setMessage('Login berhasil! Mengalihkan...');
         setTimeout(() => {
-          const role = data.role.toLowerCase();
-          if (role === 'admin') {
-            router.push('/dashboard-admin');
-          } else if (role === 'mhs') {
-            router.push('/dashboard-mahasiswa');
-          } else if (role === 'pengurus') {
-            router.push('/dashboard-pengurus');
-          } else {
-            setMessage('Peran tidak dikenali.');
-          }
+          if (role === 'admin') router.push('/dashboard-admin');
+          else if (role === 'mhs') router.push('/dashboard-mahasiswa');
+          else if (role === 'pengurus') router.push('/dashboard-pengurus');
+          else setMessage('Peran tidak dikenali.');
         }, 1000);
-      } else {
-        setMessage(data.message || 'Login gagal.');
+      } catch (err) {
+        setMessage('Gagal mengambil data sesi.');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setMessage('Terjadi kesalahan jaringan. Silakan coba lagi.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setMessage('Login gagal. Username atau password salah.');
     }
+
+    setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full">
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center px-4"
+      style={{ backgroundImage: "url('/kampus.jpeg')" }}
+
+    >
+      <div className="bg-white bg-opacity-90 backdrop-blur-md rounded-3xl shadow-2xl p-10 max-w-md w-full">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-extrabold text-indigo-700 mb-2">UKM Info System</h1>
-          <p className="text-gray-500">Login All Role</p>
+          <h1 className="text-4xl font-bold text-blue-800 mb-2 tracking-wide">
+            UKM Information System
+          </h1>
+          <p className="text-sm text-gray-600">Login untuk semua peran pengguna</p>
         </div>
+
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block mb-2 text-gray-700 font-medium">
+            <label htmlFor="username" className="block mb-1 text-sm font-medium text-gray-700">
               Username
             </label>
             <input
@@ -74,13 +71,13 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               disabled={isSubmitting}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="Masukkan username"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block mb-2 text-gray-700 font-medium">
+            <label htmlFor="password" className="block mb-1 text-sm font-medium text-gray-700">
               Password
             </label>
             <input
@@ -90,7 +87,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isSubmitting}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               placeholder="Masukkan password"
             />
           </div>
@@ -98,10 +95,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-3 rounded-lg text-white font-semibold transition ${
-              isSubmitting
-                ? 'bg-indigo-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700'
+            className={`w-full py-3 rounded-lg text-white font-semibold transition-all duration-200 ${
+              isSubmitting ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-800'
             }`}
           >
             {isSubmitting ? 'Memproses...' : 'Login'}
@@ -109,16 +104,37 @@ export default function LoginPage() {
         </form>
 
         {message && (
-          <p className="mt-6 text-center text-sm text-gray-700 select-none">{message}</p>
+          <p className="mt-6 text-center text-sm text-gray-700">{message}</p>
         )}
 
-        {/* Link ke halaman register */}
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-4 text-sm text-center text-gray-600 leading-relaxed">
+  <span className="block">
+    Gunakan akun default <span className="font-semibold">Admin</span>: 
+    <span className="ml-1 font-medium">admin / admin123</span>
+  </span>
+  <span className="block">
+    Akun <span className="font-semibold">Mahasiswa</span>: 
+    <span className="ml-1 font-medium">mahasiswa / mhs123</span>
+  </span>
+  <span className="block">
+    Akun <span className="font-semibold">Pengurus</span>: 
+    <span className="ml-1 font-medium">pengurus / pengurus123</span>
+  </span>
+</p>
+
+
+
+        <p className="mt-6 text-center text-sm text-gray-600">
           Belum punya akun?{' '}
-          <a href="/register" className="text-indigo-600 hover:underline font-medium">
+          <a href="/register" className="text-blue-600 hover:underline font-semibold">
             Daftar di sini
           </a>
         </p>
+
+        {/* ⬅️ Tambahan tombol kembali */}
+        <a href="/" className="mt-4 block text-center text-sm text-gray-600 hover:underline">
+          ← Kembali ke Menu Utama
+        </a>
       </div>
     </div>
   );

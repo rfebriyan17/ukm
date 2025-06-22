@@ -1,16 +1,20 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from 'recharts';
+import { useSession, signOut } from 'next-auth/react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { FaSignOutAlt, FaBars } from 'react-icons/fa';
 
 export default function DashboardAdmin() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
+  const { data: session, status } = useSession();
+
   const [nama, setNama] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [stats, setStats] = useState([]);
   const [chartData, setChartData] = useState([]);
@@ -18,60 +22,87 @@ export default function DashboardAdmin() {
   const [userData, setUserData] = useState([]);
   const [kegiatanData, setKegiatanData] = useState([]);
   const [inventarisData, setInventarisData] = useState([]);
+  const [pengumumanData, setPengumumanData] = useState([]);
+
+  const [judulPengumuman, setJudulPengumuman] = useState('');
+  const [isiPengumuman, setIsiPengumuman] = useState('');
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('role');
-    const namaUser = localStorage.getItem('nama');
-
-    if (!isLoggedIn || role !== 'admin') {
+    if (status === 'loading') return;
+    if (!session || session.user.role !== 'admin') {
       router.push('/login');
     } else {
-      setNama(namaUser || 'Admin');
+      setNama(session.user.name || 'Admin');
     }
-  }, [router]);
+  }, [session, status, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/dashboard');
-        const data = await res.json();
+        const [dashboardRes, pengumumanRes] = await Promise.all([
+          fetch('/api/dashboard'),
+          fetch('/api/pengumuman'),
+        ]);
+        const dashboard = await dashboardRes.json();
+        const pengumuman = await pengumumanRes.json();
 
-        // Data statistik
         setStats([
-          { id: 1, title: 'Jumlah UKM', value: data.jumlahUKM, icon: '📚' },
-          { id: 2, title: 'Jumlah Mahasiswa', value: data.jumlahMahasiswa, icon: '👩‍🎓' },
-          { id: 3, title: 'Kegiatan Hari Ini', value: data.kegiatanHariIni, icon: '📅' },
-          { id: 4, title: 'Laporan Bulanan', value: data.laporanBulanan.length, icon: '📊' },
+          { id: 1, title: 'Jumlah UKM', value: dashboard.jumlahUKM, icon: '📚' },
+          { id: 2, title: 'Jumlah Mahasiswa', value: dashboard.jumlahMahasiswa, icon: '👩‍🎓' },
+          { id: 3, title: 'Kegiatan Hari Ini', value: dashboard.kegiatanHariIni, icon: '📅' },
+          { id: 4, title: 'Laporan Bulanan', value: dashboard.laporanBulanan.length, icon: '📊' },
+          { id: 5, title: 'Pengumuman Aktif', value: dashboard.pengumumanAktif || 0, icon: '📢' },
         ]);
 
-        // Data grafik aktivitas bulanan
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         const formattedChart = monthNames.map((name, index) => {
-          const found = data.laporanBulanan.find(item => item._id === index + 1);
+          const found = dashboard.laporanBulanan.find(item => item._id === index + 1);
           return { name, Aktivitas: found ? found.count : 0 };
         });
 
         setChartData(formattedChart);
-
-        // Set data untuk tabel
-        setUkmData(data.daftarUKM);
-        setUserData(data.daftarUsers);
-        setKegiatanData(data.daftarKegiatan);
-        setInventarisData(data.daftarInventaris);
+        setUkmData(dashboard.daftarUKM);
+        setUserData(dashboard.daftarUsers);
+        setKegiatanData(dashboard.daftarKegiatan);
+        setInventarisData(dashboard.daftarInventaris);
+        setPengumumanData(pengumuman.filter(p => p.status === 'aktif'));
         setIsLoading(false);
-      } catch (error) {
-        console.error('Gagal mengambil data dashboard:', error);
+      } catch (err) {
+        console.error('Gagal mengambil data:', err);
       }
     };
 
     fetchData();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login');
+  const handleLogout = () => signOut({ callbackUrl: '/login' });
+
+  const handleSubmitPengumuman = async (e) => {
+    e.preventDefault();
+    if (!judulPengumuman || !isiPengumuman) return;
+    const res = await fetch('/api/pengumuman', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ judul: judulPengumuman, isi: isiPengumuman, status: 'aktif' }),
+    });
+    if (res.ok) {
+      setJudulPengumuman('');
+      setIsiPengumuman('');
+    }
   };
+
+  const handleDeletePengumuman = async (id) => {
+    if (!confirm('Yakin ingin menghapus pengumuman ini?')) return;
+    const res = await fetch(`/api/pengumuman/${id}`, { method: 'DELETE' });
+    if (res.ok) location.reload();
+  };
+
+  const menuItems = [
+    { label: 'Dashboard', path: '/dashboard-admin' },
+    { label: 'Users', path: '/dashboard-admin/users' },
+    { label: 'Kegiatan', path: '/dashboard-admin/kegiatan' },
+    { label: 'Inventaris', path: '/dashboard-admin/inventaris' },
+  ];
 
   if (isLoading) {
     return (
@@ -82,107 +113,175 @@ export default function DashboardAdmin() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black bg-opacity-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
-      )}
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      {/* NAVBAR */}
+      <header className="bg-white shadow sticky top-0 z-50">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="text-red-600 font-bold text-xl">UKM Info</div>
 
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-indigo-900 text-white w-64 px-6 py-8 transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 md:static md:flex-shrink-0`}>
-        <h2 className="text-3xl font-bold mb-10">UKM Admin</h2>
-        <nav className="space-y-4">
-          {[
-            { label: 'Dashboard', path: '/dashboard-admin' },
-            { label: 'Kelola Users', path: '/dashboard-admin/users' },
-            { label: 'Kelola Kegiatan', path: '/dashboard-admin/kegiatan' },
-            { label: 'Kelola Inventaris', path: '/dashboard-admin/inventaris' },
-          ].map(({ label, path }) => (
-            <button key={label} onClick={() => { setSidebarOpen(false); router.push(path); }} className="block w-full text-left px-4 py-2 rounded hover:bg-indigo-700 transition">
-              {label}
-            </button>
-          ))}
-        </nav>
-      </aside>
+          <div className="hidden md:flex space-x-6 items-center">
+            {menuItems.map((item) => (
+              <Link key={item.path} href={item.path}>
+                <span className={`px-4 py-2 rounded-md text-sm font-semibold transition cursor-pointer ${
+                  pathname === item.path ? 'bg-red-600 text-white' : 'text-gray-700 hover:text-red-600'
+                }`}>
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+          </div>
 
-      {/* Konten */}
-      <div className="flex flex-col flex-1 md:ml-64">
-        <header className="flex items-center justify-between bg-white shadow-md px-6 py-4 sticky top-0 z-30">
-          <button className="md:hidden text-indigo-900 text-2xl font-bold" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            ☰
+          <button
+            onClick={handleLogout}
+            className="hidden md:flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm"
+          >
+            <FaSignOutAlt /> Logout
           </button>
-          <h1 className="text-xl font-semibold text-indigo-900">Dashboard Admin UKM</h1>
-          <div className="flex items-center space-x-4">
-            <span className="font-medium text-indigo-900">Halo, {nama}</span>
-            <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md transition">
-              Logout
+
+          {/* Hamburger */}
+          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-red-600 text-xl">
+            <FaBars />
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {menuOpen && (
+          <div className="md:hidden px-4 pb-4 flex flex-col gap-2">
+            {menuItems.map((item) => (
+              <Link key={item.path} href={item.path} onClick={() => setMenuOpen(false)}>
+                <span className={`block px-4 py-2 rounded-md text-sm font-semibold transition cursor-pointer ${
+                  pathname === item.path ? 'bg-red-600 text-white' : 'text-gray-700 hover:text-red-600'
+                }`}>
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm w-fit"
+            >
+              <FaSignOutAlt /> Logout
             </button>
           </div>
-        </header>
+        )}
+      </header>
 
-        <main className="p-8 overflow-auto">
-          {/* Statistik */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            {stats.map(({ id, title, value, icon }) => (
-              <div key={id} className="bg-white rounded-lg shadow p-6 flex items-center space-x-4 hover:shadow-lg transition cursor-pointer">
-                <div className="text-4xl">{icon}</div>
-                <div>
-                  <p className="text-sm text-gray-500">{title}</p>
-                  <p className="text-2xl font-bold text-indigo-900">{value}</p>
-                </div>
+      {/* MAIN CONTENT */}
+      <main className="max-w-screen-xl mx-auto p-6 space-y-10">
+        {/* STATISTIK */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          {stats.map(({ id, title, value, icon }) => (
+            <div key={id} className="bg-white rounded-lg shadow p-4 flex items-center space-x-4 hover:shadow-md transition">
+              <div className="text-3xl">{icon}</div>
+              <div>
+                <p className="text-sm text-gray-500">{title}</p>
+                <p className="text-xl font-bold text-indigo-900">{value}</p>
               </div>
-            ))}
-          </section>
+            </div>
+          ))}
+        </section>
 
-          {/* Grafik */}
-          <section className="bg-white rounded-lg shadow p-6 mb-10">
-            <h2 className="text-xl font-semibold text-indigo-900 mb-4">Aktivitas UKM Per Bulan</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <XAxis dataKey="name" stroke="#4C51BF" />
-                <YAxis stroke="#4C51BF" />
-                <Tooltip />
-                <Bar dataKey="Aktivitas" fill="#5A67D8" barSize={30} />
-              </BarChart>
-            </ResponsiveContainer>
-          </section>
+        {/* GRAFIK */}
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-indigo-900 mb-4">Aktivitas UKM Per Bulan</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <XAxis dataKey="name" stroke="#4C51BF" />
+              <YAxis stroke="#4C51BF" />
+              <Tooltip />
+              <Bar dataKey="Aktivitas" fill="#5A67D8" barSize={30} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
 
-          {/* Daftar Tabel */}
-          <DataTable title="Daftar UKM" columns={['Nama UKM']} data={ukmData.map(d => [d.nama])} />
-          <DataTable title="Daftar Users" columns={['Username', 'Role']} data={userData.map(u => [u.username, u.role === 'admin' ? 'Admin' : u.role === 'mhs' ? 'Mahasiswa' : u.role])} />
-          <DataTable title="Daftar Kegiatan" columns={['Nama Kegiatan', 'Tanggal']} data={kegiatanData.map(k => [k.nama, new Date(k.tanggal).toLocaleDateString('id-ID')])} />
-          <DataTable title="Daftar Inventaris" columns={['Nama Barang', 'Jumlah', 'Kondisi']} data={inventarisData.map(i => [i.nama, i.jumlah, i.kondisi])} />
-        </main>
+        {/* FORM PENGUMUMAN */}
+        <section className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-indigo-900 mb-4">Tambah Pengumuman</h2>
+          <form onSubmit={handleSubmitPengumuman} className="space-y-4">
+            <input
+              type="text"
+              value={judulPengumuman}
+              onChange={(e) => setJudulPengumuman(e.target.value)}
+              placeholder="Judul Pengumuman"
+              className="w-full px-4 py-2 border border-indigo-300 rounded"
+              required
+            />
+            <textarea
+              value={isiPengumuman}
+              onChange={(e) => setIsiPengumuman(e.target.value)}
+              placeholder="Isi Pengumuman"
+              rows="4"
+              className="w-full px-4 py-2 border border-indigo-300 rounded"
+              required
+            />
+            <button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+            >
+              Simpan Pengumuman
+            </button>
+          </form>
+        </section>
 
-        <footer className="bg-white text-center text-gray-500 text-sm py-4">
-          &copy; 2025 UKM Info System. All rights reserved.
-        </footer>
-      </div>
+        {/* TABEL */}
+        <DataTable title="Daftar UKM" columns={['Nama UKM']} data={ukmData.map(d => [d.nama])} />
+        <DataTable title="Daftar Users" columns={['Username', 'Nama', 'Role', 'Status']} data={userData.map(u => [u.username, u.nama || '-', u.role, u.status || '-'])} />
+        <DataTable title="Daftar Kegiatan" columns={['Nama Kegiatan', 'Tanggal']} data={kegiatanData.map(k => [k.nama, new Date(k.tanggal).toLocaleDateString('id-ID')])} />
+        <DataTable title="Daftar Inventaris" columns={['Nama Barang', 'Jumlah', 'Kondisi']} data={inventarisData.map(i => [i.nama, i.jumlah, i.kondisi])} />
+        <DataTablePengumuman title="Pengumuman Aktif" columns={['Judul', 'Isi', 'Tanggal', 'Aksi']} data={pengumumanData} onDelete={handleDeletePengumuman} />
+      </main>
     </div>
   );
 }
 
-// Komponen reusable untuk menampilkan tabel
+// Reuse tabel
 function DataTable({ title, columns, data }) {
   return (
-    <section className="bg-white rounded-lg shadow p-6 mb-10">
+    <section className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-semibold text-indigo-900 mb-4">{title}</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-indigo-100">
-            <tr>
-              {columns.map(col => (
-                <th key={col} className="px-6 py-3 text-left text-sm font-medium text-indigo-900">{col}</th>
-              ))}
-            </tr>
+            <tr>{columns.map((col) => <th key={col} className="px-6 py-3 text-left text-sm font-medium text-indigo-900">{col}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.map((row, i) => (
               <tr key={i} className="hover:bg-indigo-50">
                 {row.map((cell, j) => (
-                  <td key={j} className="px-6 py-4 whitespace-nowrap text-indigo-900">{cell}</td>
+                  <td key={j} className="px-6 py-4 text-indigo-900">{cell}</td>
                 ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function DataTablePengumuman({ title, columns, data, onDelete }) {
+  return (
+    <section className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-xl font-semibold text-indigo-900 mb-4">{title}</h2>
+      <div className="overflow-x-auto">
+        <table className="min-w-full table-auto">
+          <thead className="bg-indigo-100">
+            <tr>{columns.map((col, i) => <th key={i} className="px-6 py-3 text-left text-sm font-medium text-indigo-900">{col}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {data.map((p) => (
+              <tr key={p._id}>
+                <td className="px-6 py-4 text-indigo-900">{p.judul}</td>
+                <td className="px-6 py-4 text-indigo-900">{p.isi}</td>
+                <td className="px-6 py-4 text-indigo-900">{new Date(p.createdAt).toLocaleDateString('id-ID')}</td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => onDelete(p._id)}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
+                  >
+                    Hapus
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

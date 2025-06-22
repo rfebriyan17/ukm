@@ -1,42 +1,26 @@
 import { connectDB } from '@/lib/mongodb';
+import User from '@/models/User';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { MongoClient } from 'mongodb';
 
-export async function POST(request) {
-  try {
-    const { username, password, nama, role } = await request.json();
+export async function POST(req) {
+  const { username, password, nama, role } = await req.json();
+  await connectDB();
 
-    if (!username || !password || !nama || !role) {
-      return new Response(JSON.stringify({ message: 'Semua field wajib diisi.' }), { status: 400 });
-    }
-
-    await connectDB();
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db('ukm');
-    const usersCollection = db.collection('users');
-
-    const existingUser = await usersCollection.findOne({ username });
-    if (existingUser) {
-      return new Response(JSON.stringify({ message: 'Username sudah digunakan.' }), { status: 409 });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const status = role.toLowerCase() === 'pengurus' ? 'pending' : 'approved';
-
-    await usersCollection.insertOne({
-      username,
-      password: hashedPassword,
-      nama,
-      role: role.toLowerCase(),
-      status,
-    });
-
-    return new Response(JSON.stringify({ message: 'Registrasi berhasil!' }), { status: 201 });
-  } catch (error) {
-    console.error('❌ Register error:', error);
-    return new Response(JSON.stringify({ message: 'Terjadi kesalahan saat registrasi.' }), {
-      status: 500,
-    });
+  const existing = await User.findOne({ username });
+  if (existing) {
+    return NextResponse.json({ message: 'Username sudah terdaftar' }, { status: 400 });
   }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = await User.create({
+    username,
+    password: hashedPassword,
+    nama,
+    role,
+    status: 'Aktif',
+  });
+
+  return NextResponse.json({ message: 'Registrasi berhasil', id: newUser._id });
 }

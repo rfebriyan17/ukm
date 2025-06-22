@@ -6,7 +6,13 @@ import { useRouter } from 'next/navigation';
 export default function ManageUsers() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ username: '', role: 'user' });
+  const [form, setForm] = useState({
+    username: '',
+    nama: '',
+    password: '',
+    role: 'user',
+    status: 'Aktif',
+  });
   const [editingId, setEditingId] = useState(null);
 
   const fetchUsers = async () => {
@@ -24,20 +30,30 @@ export default function ManageUsers() {
   };
 
   const handleAdd = async () => {
-    if (!form.username) return alert('Username wajib diisi!');
+    if (!form.username || !form.password || !form.role) {
+      return alert('Username, password, dan role wajib diisi!');
+    }
+
     const res = await fetch('/api/users', {
       method: 'POST',
       body: JSON.stringify(form),
     });
+
     if (res.ok) {
-      setForm({ username: '', role: 'user' });
+      setForm({ username: '', nama: '', password: '', role: 'user', status: 'Aktif' });
       fetchUsers();
     }
   };
 
   const handleEdit = user => {
     setEditingId(user._id);
-    setForm({ username: user.username, role: user.role });
+    setForm({
+      username: user.username,
+      nama: user.nama || '',
+      password: '',
+      role: user.role,
+      status: user.status || 'Aktif',
+    });
   };
 
   const handleUpdate = async () => {
@@ -45,9 +61,10 @@ export default function ManageUsers() {
       method: 'PUT',
       body: JSON.stringify(form),
     });
+
     if (res.ok) {
       setEditingId(null);
-      setForm({ username: '', role: 'user' });
+      setForm({ username: '', nama: '', password: '', role: 'user', status: 'Aktif' });
       fetchUsers();
     }
   };
@@ -69,28 +86,58 @@ export default function ManageUsers() {
         &larr; Kembali ke Dashboard
       </button>
 
+      {/* Form Tambah/Edit */}
       <div className="bg-white p-6 rounded shadow mb-8">
-        <h2 className="text-xl font-semibold mb-4">{editingId ? 'Edit User' : 'Tambah User'}</h2>
-        <div className="flex space-x-4">
+        <h2 className="text-xl font-semibold mb-4">
+          {editingId ? 'Edit User' : 'Tambah User'}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             type="text"
             name="username"
             placeholder="Username"
             value={form.username}
             onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 flex-grow text-gray-900 bg-white placeholder-gray-500"
+            className="border border-gray-300 rounded px-3 py-2"
+          />
+          <input
+            type="text"
+            name="nama"
+            placeholder="Nama Lengkap"
+            value={form.nama}
+            onChange={handleChange}
+            className="border border-gray-300 rounded px-3 py-2"
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password (kosongkan jika tidak diubah)"
+            value={form.password}
+            onChange={handleChange}
+            className="border border-gray-300 rounded px-3 py-2"
           />
           <select
             name="role"
             value={form.role}
             onChange={handleChange}
-            className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
+            className="border border-gray-300 rounded px-3 py-2"
           >
-            <option value="user">User</option>
             <option value="admin">Admin</option>
             <option value="pengurus">Pengurus</option>
             <option value="mhs">Mahasiswa</option>
           </select>
+          <select
+            name="status"
+            value={form.status}
+            onChange={handleChange}
+            className="border border-gray-300 rounded px-3 py-2"
+          >
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+
+        <div className="mt-4 space-x-2">
           {editingId ? (
             <>
               <button
@@ -102,7 +149,13 @@ export default function ManageUsers() {
               <button
                 onClick={() => {
                   setEditingId(null);
-                  setForm({ username: '', role: 'user' });
+                  setForm({
+                    username: '',
+                    nama: '',
+                    password: '',
+                    role: 'user',
+                    status: 'Aktif',
+                  });
                 }}
                 className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
               >
@@ -120,24 +173,29 @@ export default function ManageUsers() {
         </div>
       </div>
 
+      {/* Daftar User */}
       <div className="bg-white p-6 rounded shadow">
         <h2 className="text-xl font-semibold mb-4">Daftar Users</h2>
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-indigo-100">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">Username</th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">Role</th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-indigo-900">Aksi</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-indigo-900">Username</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-indigo-900">Nama</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-indigo-900">Role</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-indigo-900">Status</th>
+              <th className="px-4 py-2 text-left text-sm font-medium text-indigo-900">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-gray-900">
-            {users.map(({ _id, username, role }) => (
+            {users.map(({ _id, username, nama, role, status }) => (
               <tr key={_id} className="hover:bg-indigo-50">
-                <td className="px-6 py-4 whitespace-nowrap">{username}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{role}</td>
-                <td className="px-6 py-4 whitespace-nowrap space-x-2">
+                <td className="px-4 py-2">{username}</td>
+                <td className="px-4 py-2">{nama || '-'}</td>
+                <td className="px-4 py-2 capitalize">{role}</td>
+                <td className="px-4 py-2">{status}</td>
+                <td className="px-4 py-2 space-x-2">
                   <button
-                    onClick={() => handleEdit({ _id, username, role })}
+                    onClick={() => handleEdit({ _id, username, nama, role, status })}
                     className="text-blue-600 hover:text-blue-800"
                   >
                     Edit
@@ -153,7 +211,7 @@ export default function ManageUsers() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={3} className="text-center py-4 text-gray-500">
+                <td colSpan={5} className="text-center py-4 text-gray-500">
                   Tidak ada data user.
                 </td>
               </tr>
